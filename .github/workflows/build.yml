@@ -25,7 +25,9 @@ jobs:
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --name PDF_RAG_LOCAL --hidden-import chromadb.telemetry.product.posthog --hidden-import chromadb.api.segment --hidden-import chromadb.segment.impl.manager.local --hidden-import chromadb.db.impl.sqlite --hidden-import chromadb.execution.executor.local pdf_rag_local.py
+                - name: Build EXE
+        run: |
+          pyinstaller --onefile --name PDF_RAG_LOCAL --collect-all chromadb --collect-all posthog --collect-all onnxruntime --collect-all tokenizers --hidden-import chromadb.api.rust pdf_rag_local.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
