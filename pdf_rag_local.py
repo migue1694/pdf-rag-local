@@ -23,7 +23,7 @@ def load_config():
 
 
 config = load_config()
-client_ai = OpenAI(api_key=config["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"])
+client_ai = OpenAI(api_key=config["OPENAI_API_KEY"])
 EMBED_MODEL = config.get("EMBED_MODEL", "text-embedding-3-small")
 CHAT_MODEL = config.get("CHAT_MODEL", "gpt-4.1-mini")
 
