@@ -111,7 +111,7 @@ def index_folder(folder_path):
 
                 total_chunks += 1
 
-    print(f"Indexación terminada. Chunks guardados: {total_chunks}")
+    print(f"\nIndexación terminada. Chunks guardados: {total_chunks}")
     print(f"Base local creada en: {DB_PATH}")
 
 
@@ -170,6 +170,32 @@ RESPUESTA:
         print(f"- {meta['file']} | Página {meta['page']}")
 
 
+def chat_mode():
+    print("\nPDF_RAG_LOCAL - MODO CONVERSACIÓN")
+    print("Escribe tu pregunta y presiona Enter.")
+    print("Comandos disponibles:")
+    print("- salir  : cerrar el chat")
+    print("- exit   : cerrar el chat")
+    print("- clear  : limpiar pantalla\n")
+
+    while True:
+        question = input("Pregunta > ").strip()
+
+        if question.lower() in ["salir", "exit", "quit"]:
+            print("Cerrando chat.")
+            break
+
+        if question.lower() == "clear":
+            os.system("cls" if os.name == "nt" else "clear")
+            continue
+
+        if not question:
+            continue
+
+        ask_question(question)
+        print("\n" + "=" * 80 + "\n")
+
+
 def show_help():
     print("""
 PDF_RAG_LOCAL - Chat local con PDFs usando OpenAI API
@@ -177,13 +203,18 @@ PDF_RAG_LOCAL - Chat local con PDFs usando OpenAI API
 Uso:
 
 1) Indexar carpeta de PDFs:
-pdf_rag_local.exe index "D:\\MIS_PDFS"
+PDF_RAG_LOCAL.exe index "D:\\MIS_PDFS"
 
-2) Preguntar:
-pdf_rag_local.exe ask "¿Qué dice el documento sobre penalidades?"
+2) Preguntar una sola vez:
+PDF_RAG_LOCAL.exe ask "¿Qué dice el documento sobre penalidades?"
+
+3) Modo conversación:
+PDF_RAG_LOCAL.exe chat
+
+En modo conversación solo escribes la pregunta y presionas Enter.
 
 Archivos necesarios junto al .exe:
-- pdf_rag_local.exe
+- PDF_RAG_LOCAL.exe
 - config.json
 - chroma_db/ se crea automáticamente
 """)
@@ -209,6 +240,9 @@ if __name__ == "__main__":
             sys.exit()
 
         ask_question(sys.argv[2])
+
+    elif command == "chat":
+        chat_mode()
 
     else:
         show_help()
