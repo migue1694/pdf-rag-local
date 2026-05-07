@@ -9,6 +9,7 @@ from openai import OpenAI
 APP_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 DB_PATH = os.path.join(APP_DIR, "chroma_db")
 CONFIG_PATH = os.path.join(APP_DIR, "config.json")
+EXTRACTED_TEXT_DIR = os.path.join(APP_DIR, "extracted_text")
 COLLECTION_NAME = "pdf_rag_local"
 
 
@@ -33,14 +34,33 @@ def extract_text_from_pdf(pdf_path):
     pages = []
 
     for i, page in enumerate(doc):
-        text = page.get_text()
+        text = page.get_text("text")
         if text.strip():
             pages.append((i + 1, text))
 
     return pages
 
 
-def chunk_text(text, chunk_size=1200, overlap=200):
+def save_extracted_text(pdf_path, pages):
+    os.makedirs(EXTRACTED_TEXT_DIR, exist_ok=True)
+
+    base_name = os.path.basename(pdf_path)
+    safe_name = os.path.splitext(base_name)[0].replace(" ", "_")
+    full_text_path = os.path.join(EXTRACTED_TEXT_DIR, f"{safe_name}_full.txt")
+
+    with open(full_text_path, "w", encoding="utf-8") as f:
+        f.write(f"ARCHIVO: {base_name}\n")
+        f.write(f"RUTA: {pdf_path}\n")
+        f.write("=" * 80 + "\n\n")
+
+        for page_num, text in pages:
+            f.write(f"\n\n=== PÁGINA {page_num} ===\n\n")
+            f.write(text)
+
+    return full_text_path
+
+
+def chunk_text(text, chunk_size=800, overlap=150):
     chunks = []
     start = 0
 
@@ -69,26 +89,41 @@ def get_collection():
     return client_db.get_or_create_collection(name=COLLECTION_NAME)
 
 
-def index_folder(folder_path):
-    collection = get_collection()
+def index_folder(folder_path=None):
+    if folder_path is None:
+        folder_path = APP_DIR
 
+    collection = get_collection()
     pdf_files = []
 
     for root, _, files in os.walk(folder_path):
+        if "chroma_db" in root or "extracted_text" in root:
+            continue
+
         for file in files:
             if file.lower().endswith(".pdf"):
                 pdf_files.append(os.path.join(root, file))
 
     if not pdf_files:
         print("No se encontraron PDFs.")
+        print(f"Carpeta revisada: {folder_path}")
         return
 
+    print(f"Carpeta indexada: {folder_path}")
     print(f"PDFs encontrados: {len(pdf_files)}")
 
     total_chunks = 0
 
     for pdf_path in tqdm(pdf_files, desc="Indexando PDFs"):
         pages = extract_text_from_pdf(pdf_path)
+
+        if not pages:
+            print(f"\nAdvertencia: no se extrajo texto de {os.path.basename(pdf_path)}.")
+            print("Posible PDF escaneado. Necesitaría OCR.")
+            continue
+
+        text_path = save_extracted_text(pdf_path, pages)
+        print(f"\nTexto extraído guardado en: {text_path}")
 
         for page_num, text in pages:
             chunks = chunk_text(text)
@@ -113,9 +148,10 @@ def index_folder(folder_path):
 
     print(f"\nIndexación terminada. Chunks guardados: {total_chunks}")
     print(f"Base local creada en: {DB_PATH}")
+    print(f"Textos completos guardados en: {EXTRACTED_TEXT_DIR}")
 
 
-def ask_question(question, top_k=6):
+def ask_question(question, top_k=15):
     collection = get_collection()
 
     query_embedding = get_embedding(question)
@@ -144,6 +180,7 @@ Responde usando SOLO el contexto proporcionado.
 No inventes información.
 Si el contexto no es suficiente, dilo claramente.
 Incluye fuentes con archivo y página.
+Sé preciso, ejecutivo y útil.
 
 PREGUNTA:
 {question}
@@ -173,10 +210,9 @@ RESPUESTA:
 def chat_mode():
     print("\nPDF_RAG_LOCAL - MODO CONVERSACIÓN")
     print("Escribe tu pregunta y presiona Enter.")
-    print("Comandos disponibles:")
-    print("- salir  : cerrar el chat")
-    print("- exit   : cerrar el chat")
-    print("- clear  : limpiar pantalla\n")
+    print("Comandos:")
+    print("- salir / exit / quit : cerrar")
+    print("- clear               : limpiar pantalla\n")
 
     while True:
         question = input("Pregunta > ").strip()
@@ -202,21 +238,25 @@ PDF_RAG_LOCAL - Chat local con PDFs usando OpenAI API
 
 Uso:
 
-1) Indexar carpeta de PDFs:
+1) Indexar PDFs en la misma carpeta del .exe:
+PDF_RAG_LOCAL.exe index
+
+2) Indexar una carpeta específica:
 PDF_RAG_LOCAL.exe index "D:\\MIS_PDFS"
 
-2) Preguntar una sola vez:
+3) Preguntar una sola vez:
 PDF_RAG_LOCAL.exe ask "¿Qué dice el documento sobre penalidades?"
 
-3) Modo conversación:
+4) Modo conversación:
 PDF_RAG_LOCAL.exe chat
-
-En modo conversación solo escribes la pregunta y presionas Enter.
 
 Archivos necesarios junto al .exe:
 - PDF_RAG_LOCAL.exe
 - config.json
-- chroma_db/ se crea automáticamente
+
+Carpetas creadas automáticamente:
+- chroma_db/
+- extracted_text/
 """)
 
 
@@ -228,11 +268,10 @@ if __name__ == "__main__":
     command = sys.argv[1].lower()
 
     if command == "index":
-        if len(sys.argv) < 3:
-            print("Falta la ruta de la carpeta.")
-            sys.exit()
-
-        index_folder(sys.argv[2])
+        if len(sys.argv) >= 3:
+            index_folder(sys.argv[2])
+        else:
+            index_folder(APP_DIR)
 
     elif command == "ask":
         if len(sys.argv) < 3:
