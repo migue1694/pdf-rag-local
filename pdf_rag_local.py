@@ -5,6 +5,7 @@ import csv
 import base64
 import fitz
 import chromadb
+import re
 from tqdm import tqdm
 from openai import OpenAI
 
@@ -33,6 +34,25 @@ EMBED_MODEL = config.get("EMBED_MODEL", "text-embedding-3-small")
 CHAT_MODEL = config.get("CHAT_MODEL", "gpt-4.1-mini")
 OCR_MODEL = config.get("OCR_MODEL", "gpt-4.1")
 
+def clean_response(text):
+
+    text=re.sub(r'\*\*','',text)
+
+    text=re.sub(
+        r'Fuente:.*',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    text=re.sub(
+        r'Fuentes:.*',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    return text.strip()
 
 def get_collection():
     client_db = chromadb.PersistentClient(path=DB_PATH)
@@ -281,11 +301,22 @@ def ask_question(question, top_k=15):
     prompt = f"""
 Eres un analista experto en documentos técnicos, legales y de ingeniería.
 
-Responde usando SOLO el contexto proporcionado.
-No inventes información.
-Si el contexto no es suficiente, dilo claramente.
-Incluye fuentes con archivo y página.
-Sé preciso, ejecutivo y útil.
+REGLAS OBLIGATORIAS:
+
+- Usa únicamente el contexto proporcionado.
+- No inventes información.
+- Si el contexto no es suficiente, dilo.
+- NO uses markdown.
+- NO uses **.
+- NO uses listas markdown.
+- NO escribas "Fuente:" dentro del texto.
+- NO cites páginas dentro del cuerpo.
+- Responde en texto limpio.
+- Usa títulos simples.
+- Usa numeración normal:
+  1.
+  2.
+  3.
 
 PREGUNTA:
 {question}
@@ -305,11 +336,28 @@ RESPUESTA:
     )
 
     print("\nRESPUESTA:\n")
-    print(response.choices[0].message.content)
+    cleaned=clean_response(
+    response.choices[0].message.content
+    )
+
+    print(cleaned)
 
     print("\nFUENTES RECUPERADAS:")
+print("\nFUENTES:\n")
+
+seen=set()
+
     for meta in metadatas:
-        print(f"- {meta['file']} | Página {meta['page']} | Método: {meta.get('method', 'N/A')}")
+    
+        source=f"{meta['file']} | Página {meta['page']}"
+    
+        if source not in seen:
+    
+            print(
+                f"• {source}"
+            )
+    
+            seen.add(source)
 
 
 def audit_extracted_text():
