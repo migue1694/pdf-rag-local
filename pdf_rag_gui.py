@@ -1,6 +1,8 @@
 import customtkinter as ctk
-import subprocess
 import threading
+from pdf_rag_local import ask_question
+import io
+import contextlib
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -95,28 +97,20 @@ def ask():
 
     question.delete(0,"end")
 
-    def worker():
+def worker():
 
-        process=subprocess.run(
-            [
-                "PDF_RAG_LOCAL.exe",
-                "ask",
-                q
-            ],
-            capture_output=True,
-            text=True
-        )
+    output = io.StringIO()
 
-        answer=process.stdout
+    with contextlib.redirect_stdout(output):
 
-        answer_box.insert(
-            "end",
-            f"\nIA:\n{answer}\n"
-        )
+        ask_question(q)
 
-    threading.Thread(
-        target=worker
-    ).start()
+    answer=output.getvalue()
+
+    answer_box.insert(
+        "end",
+        f"\nIA:\n{answer}\n"
+    )
 
 send=ctk.CTkButton(
     bottom,
