@@ -30,5 +30,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PDF_RAG_LOCAL
-          path: dist/PDF_RAG_LOCAL.exe
+          name: PDF_RAG_STUDIO
+          path: dist/PDF_RAG_STUDIO.exe
