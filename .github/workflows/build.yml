@@ -25,7 +25,7 @@ jobs:
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --name PDF_RAG_LOCAL --collect-all chromadb --collect-all posthog --collect-all onnxruntime --collect-all tokenizers --hidden-import chromadb.api.rust pdf_rag_local.py
+          pyinstaller --windowed --onefile --name PDF_RAG_STUDIO --collect-all chromadb --collect-all posthog --collect-all onnxruntime --collect-all tokenizers --hidden-import chromadb.api.rust pdf_rag_gui.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
